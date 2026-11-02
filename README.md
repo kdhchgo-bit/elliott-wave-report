@@ -1,44 +1,47 @@
-# Elliott Wave Report — 정석 (Standard)
+# Elliott Wave Report
 
-엘리어트 파동 기반 **다중 시간봉 분석 + 매매 계획**을 단일 HTML 리포트로 만드는 표준 절차와 그 첫 산출물.
+A repeatable workflow for turning Elliott Wave counts into an executable trade plan, delivered as a single self-contained HTML report.
 
-## 이 레포가 하는 일
+Given one instrument and a few timeframes, it produces:
 
-- 기초지수(SOXX / ^SOX)로 파동을 세고, 레버리지 ETF(SOXL)는 가격만 환산한다.
-- 목표가를 **피보나치 응집**으로 좁히고, **시간 투영**으로 도달 구간을 붙인다.
-- 마지막에 **지정가 분할 · 손절 · TP · 손익비 · 비중**이 숫자로 떨어지는 주문표를 만든다.
-- 결과는 자체 포함(self-contained) HTML 한 장. 차트는 SVG로 직접 그려 넣는다.
+- wave counts at several degrees, verified against structure rules
+- price targets from Fibonacci confluence (three independent calculations must overlap within 1%)
+- arrival windows projected from measured wave durations
+- a limit-order ladder, stops, tiered take-profits, weighted R and account-level risk
+- annotated SVG charts where every level carries `price · R · date`
 
-## 폴더 구조
+## Method
+
+1. **Data** - daily/weekly/hourly OHLC from a public API (Yahoo Finance for equities and ETFs, Binance USDT-M for crypto).
+2. **Degrees** - count monthly, weekly, daily, 4H, 1H and 15M, then check that each lower-degree count nests inside the higher-degree one.
+3. **Correction classification** - default to a plain 5-3-5 zigzag or 3-3-5 flat. Escalate to triangle, WXY, WXYXZ, diagonal or truncation only when the simple count breaks a rule.
+4. **Targets** - C = 0.618/0.786/1.0/1.272/1.618 x A, retracements of the larger move, and prior volume nodes. Keep the zones where at least three agree.
+5. **Time** - measure each wave in bars, extrapolate with the same ratios, and take the overlap as a window rather than a single date.
+6. **Plan** - three tranches in, stop on a closing basis, three tiers out, weighted R, and one invalidation level per thesis.
+
+## Repository layout
 
 ```
-docs/
-  01-method.md      파동 카운트 규칙과 데이터 소스
-  02-chart-standard.md  차트 표기 정석 (라벨·박스·날짜)
-  03-trade-plan.md  지정가·TP·손익비 산식
-reports/
-  2026-10-31_SOXL.html  첫 산출물 (레버리지 ETF · 5장 차트)
-  2026-11-02_BTC.html   두 번째 산출물 (24h 시장 · 6시간봉 · 롱/숏 2개씩)
+SKILL.md                        full operating procedure (agent skill)
+references/repl-lib.js          chart renderer, zigzag, trade math (paste into a REPL)
+reports/SOXL_2026-10-31.html    leveraged-ETF example
+reports/BTC_Elliott_2026-11-02.html  crypto example with long and short setups
 ```
 
-## 정석 워크플로 (6단계)
+## Instrument notes
 
-1. **데이터** — Yahoo chart API로 1d/1wk/60m/15m 수집. 마지막 봉이 장중일 수 있으니 종가로 단정하지 않는다.
-2. **카운트** — 주봉(대) → 일봉(중) → 216·60분(소) → 15분(미세) 순서로 등급을 나눠 센다.
-3. **검증** — 3파 최단 금지, 4파 1파 침범 금지, 2파 61.8% 초과 금지, B파 90% 초과 금지.
-4. **목표** — C=A·0.618A·0.786A·1.272A + 전체 상승 되돌림 38.2/50/61.8 + 거래량 노드. 3개 이상 겹치는 곳만 쓴다.
-5. **시간** — 파동 길이(거래일) 실측 후 배수(0.618/1.0/1.272/1.618)로 외삽. 가격보다 신뢰도가 낮다.
-6. **주문표** — 3분할 진입, 종가 기준 손절, 3단 TP, 가중 R, 계좌 리스크, 손익분기 승률.
+- **Leveraged ETFs** (SOXL and similar): count on the 1x index (SOXX / ^SOX) because daily rebalancing destroys wave proportions in the ETF itself. Convert price levels with `ETF = ETF0 x (target / current)^3`.
+- **Crypto**: trades 24/7, so time is measured in calendar days and the daily close is 00:00 UTC. There is no underlying index; degree separation comes from the timeframes themselves. Position sizing must respect the liquidation price, roughly `1/leverage - 0.005`.
 
-## 산출물 규격
+## Verification
 
-- 1920×1080 프레임, Noto Serif KR, 개조식(굵은 라벨 + 서술).
-- 차트는 **가로로 압축하지 않는다** (2:1 이상 금지). 컨텍스트 1400×900, 트레이드 800×840.
-- 모든 라벨은 종가가 아니라 **실제 고점·저점 가격**을 찍는다.
-- 진입/TP/손절은 **네모 박스 콜아웃**으로 감싸고 박스 안에 `가격 · R · 날짜`를 넣는다.
+A report is only finished when:
 
-## 주의
+- every level in the text matches the chart boxes
+- the invalidation level is explicit
+- the chart labels are readable at 1920 px with no overlap
+- the wave path is drawn from the origin pivot through every labeled point
 
-- 레버리지 ETF의 파동 비율을 ETF 가격으로 재면 깨진다. 같은 B파에서 SOXX는 69.1%를 되돌렸는데 SOXL은 37.2%만 되돌렸다.
-- 3배 ETF는 일간 ATR이 17%까지 오른다. 손절 폭 10% 미만은 노이즈에 걸린다.
-- 본 문서는 분석 기록이며 투자 권유가 아니다.
+## Disclaimer
+
+Research notes and study material. Not investment advice. Markets are not predictable; every setup here ships with a stop and may lose.
